@@ -112,18 +112,44 @@
     </div>
   </main>
 
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+
   <script>
-    // Interested counter (shared via server API)
+    // =====================================================
+    // FIREBASE CONFIG — Replace with your own values
+    // Go to: https://console.firebase.google.com
+    // 1. Create a project
+    // 2. Go to Project Settings > General > Your apps > Add web app
+    // 3. Copy the config object below
+    // =====================================================
+    const firebaseConfig = {
+    apiKey: "AIzaSyDQMUlg3GkudvW6WLeQbiz8sWjq3rQtfSs",
+    authDomain: "donut-stock.firebaseapp.com",
+    databaseURL: "https://donut-stock-default-rtdb.firebaseio.com",
+    projectId: "donut-stock",
+    storageBucket: "donut-stock.firebasestorage.app",
+    messagingSenderId: "1091896290590",
+    appId: "1:1091896290590:web:529fa34c492844044bad0f",
+    measurementId: "G-HP4WPP568N"
+    };
+
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const countRef = db.ref('interested/count');
+
     const VOTED_KEY = 'donutstock_voted';
     let voted = localStorage.getItem(VOTED_KEY) === 'true';
     const countEl = document.getElementById('interested-count');
     const btn = document.getElementById('interested-btn');
 
-    // Load current count from server
-    fetch('/api/interested')
-      .then(res => res.json())
-      .then(data => { countEl.textContent = data.count.toLocaleString(); })
-      .catch(() => {});
+    // Listen for real-time count updates
+    countRef.on('value', (snapshot) => {
+      const val = snapshot.val() || 0;
+      countEl.textContent = val.toLocaleString();
+    });
 
     if (voted) {
       btn.textContent = 'Interested';
@@ -139,10 +165,8 @@
       btn.classList.remove('bg-white', 'text-black', 'hover:bg-white/80');
       btn.classList.add('border', 'border-white/20', 'text-white/50', 'cursor-default');
 
-      fetch('/api/interested', { method: 'POST' })
-        .then(res => res.json())
-        .then(data => { countEl.textContent = data.count.toLocaleString(); })
-        .catch(() => {});
+      // Atomic increment via transaction
+      countRef.transaction((current) => (current || 0) + 1);
     }
 
     // Countdown
