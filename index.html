@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DONUTSTOCK</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Inter"', 'system-ui', 'sans-serif'],
+          },
+        },
+      },
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000;
+      color: #fff;
+      font-family: 'Inter', system-ui, sans-serif;
+      overflow-x: hidden;
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #000; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+    @keyframes marquee {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    .marquee-track {
+      animation: marquee 25s linear infinite;
+    }
+  </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+  <!-- NAV -->
+  <nav class="sticky top-0 z-50 bg-black border-b border-white/10">
+    <div class="flex items-center justify-between h-12 px-4 md:px-6">
+      <div class="flex items-center gap-4 flex-1 min-w-0">
+        <a href="#" class="text-sm font-normal whitespace-nowrap hover:text-white/60 transition-colors">Search</a>
+        <div class="overflow-hidden flex-1 min-w-0 hidden sm:block">
+          <div class="marquee-track flex whitespace-nowrap">
+            <span class="text-sm text-white/50 mx-6">Elytra UP 29%</span>
+            <span class="text-sm text-white/50 mx-6">Netherite Ingot DOWN 5%</span>
+            <span class="text-sm text-white/50 mx-6">Gilded Blackstone UP 42%</span>
+            <span class="text-sm text-white/50 mx-6">Dragon Head DOWN 2%</span>
+            <span class="text-sm text-white/50 mx-6">Developed by RY44AN</span>
+            <span class="text-sm text-white/50 mx-6">Coming Soon</span>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-5 md:gap-6">
+        <a href="#" class="text-sm font-normal hover:text-white/60 transition-colors hidden md:inline">Home</a>
+        <a href="#" class="text-sm font-normal hover:text-white/60 transition-colors">Stocks</a>
+        <a href="#" class="text-sm font-normal hover:text-white/60 transition-colors hidden md:inline">Portfolio</a>
+        <a href="#" class="text-sm font-normal hover:text-white/60 transition-colors">Settings</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <main class="flex-1 flex flex-col items-center justify-center px-4 md:px-6">
+    <div class="max-w-2xl text-center">
+      <h1 class="text-5xl md:text-7xl lg:text-8xl font-bold tracking-tighter uppercase leading-none">
+        DONUT<br/>Stock
+      </h1>
+      <p class="text-sm md:text-base text-white/40 mt-6 max-w-md mx-auto leading-relaxed">
+        Buy and sell stocks, transfer money, and manage your portfolio in the most advanced Donut invsetment managing platforms in the world.
+      </p>
+      <div class="mt-10">
+        <p class="text-xs text-white/50 uppercase tracking-widest mb-3">Launching In</p>
+        <div id="countdown" class="flex items-center justify-center gap-6">
+          <div class="text-center">
+            <span id="days" class="text-3xl md:text-4xl font-bold tabular-nums">--</span>
+            <p class="text-[10px] text-white/30 uppercase tracking-wider mt-1">Days</p>
+          </div>
+          <span class="text-2xl text-white/20 font-light">:</span>
+          <div class="text-center">
+            <span id="hours" class="text-3xl md:text-4xl font-bold tabular-nums">--</span>
+            <p class="text-[10px] text-white/30 uppercase tracking-wider mt-1">Hours</p>
+          </div>
+          <span class="text-2xl text-white/20 font-light">:</span>
+          <div class="text-center">
+            <span id="minutes" class="text-3xl md:text-4xl font-bold tabular-nums">--</span>
+            <p class="text-[10px] text-white/30 uppercase tracking-wider mt-1">Min</p>
+          </div>
+          <span class="text-2xl text-white/20 font-light">:</span>
+          <div class="text-center">
+            <span id="seconds" class="text-3xl md:text-4xl font-bold tabular-nums">--</span>
+            <p class="text-[10px] text-white/30 uppercase tracking-wider mt-1">Sec</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interested button -->
+      <div class="mt-8 flex flex-col items-center gap-2">
+        <button id="interested-btn" onclick="markInterested()" class="bg-white text-black px-8 py-3 text-sm font-medium tracking-wide uppercase hover:bg-white/80 transition-colors cursor-pointer">
+          I'm Interested
+        </button>
+        <p class="text-xs text-white/30"><span id="interested-count">0</span> people interested</p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Interested counter (shared via server API)
+    const VOTED_KEY = 'donutstock_voted';
+    let voted = localStorage.getItem(VOTED_KEY) === 'true';
+    const countEl = document.getElementById('interested-count');
+    const btn = document.getElementById('interested-btn');
+
+    // Load current count from server
+    fetch('/api/interested')
+      .then(res => res.json())
+      .then(data => { countEl.textContent = data.count.toLocaleString(); })
+      .catch(() => {});
+
+    if (voted) {
+      btn.textContent = 'Interested';
+      btn.classList.remove('bg-white', 'text-black', 'hover:bg-white/80');
+      btn.classList.add('border', 'border-white/20', 'text-white/50', 'cursor-default');
+    }
+
+    function markInterested() {
+      if (voted) return;
+      voted = true;
+      localStorage.setItem(VOTED_KEY, 'true');
+      btn.textContent = 'Interested';
+      btn.classList.remove('bg-white', 'text-black', 'hover:bg-white/80');
+      btn.classList.add('border', 'border-white/20', 'text-white/50', 'cursor-default');
+
+      fetch('/api/interested', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => { countEl.textContent = data.count.toLocaleString(); })
+        .catch(() => {});
+    }
+
+    // Countdown
+    const target = new Date('2026-03-25T00:00:00').getTime();
+    function tick() {
+      const now = Date.now();
+      const diff = Math.max(0, target - now);
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor((diff % 86400000) / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      document.getElementById('days').textContent = String(d).padStart(2, '0');
+      document.getElementById('hours').textContent = String(h).padStart(2, '0');
+      document.getElementById('minutes').textContent = String(m).padStart(2, '0');
+      document.getElementById('seconds').textContent = String(s).padStart(2, '0');
+    }
+    tick();
+    setInterval(tick, 1000);
+  </script>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-white/10 px-4 md:px-6 py-8">
+    <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div class="flex items-center gap-6 flex-wrap">
+        <a href="#" class="text-xs text-white/40 hover:text-white transition-colors">Help</a>
+        <a href="#" class="text-xs text-white/40 hover:text-white transition-colors">About</a>
+        <a href="#" class="text-xs text-white/40 hover:text-white transition-colors">Privacy</a>
+        <a href="#" class="text-xs text-white/40 hover:text-white transition-colors">Terms</a>
+      </div>
+      <span class="text-xs text-white/20">&copy; 2026 DonutStock</span>
+    </div>
+  </footer>
+
+</body>
+</html>
