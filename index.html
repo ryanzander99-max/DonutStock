@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DONUTSTOCK</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -112,18 +113,40 @@
     </div>
   </main>
 
+  <!-- FEEDBACK BOARD -->
+  <section class="border-t border-white/10 px-4 md:px-6 py-16 mt-16">
+    <div class="max-w-2xl mx-auto">
+      <h2 class="text-xs font-medium tracking-wide uppercase mb-8 text-center">Suggestions</h2>
+
+      <!-- Submit form -->
+      <div class="flex gap-3">
+        <input
+          id="suggestion-input"
+          type="text"
+          placeholder="What would you like to see on launch?"
+          maxlength="200"
+          class="flex-1 bg-transparent border border-white/20 px-4 py-3 text-sm font-light placeholder-white/30 focus:outline-none focus:border-white/50 transition-colors"
+        />
+        <button onclick="submitSuggestion()" class="bg-white text-black px-6 py-3 text-sm font-medium tracking-wide uppercase hover:bg-white/80 transition-colors cursor-pointer whitespace-nowrap">
+          Submit
+        </button>
+      </div>
+      <div class="w-full bg-white/5 h-[2px] mt-2 mb-8">
+        <div id="char-bar" class="bg-white/30 h-full transition-all duration-150" style="width: 0%"></div>
+      </div>
+
+      <!-- Suggestions list -->
+      <div id="suggestions-list" class="flex flex-col gap-2">
+        <p class="text-xs text-white/20 text-center py-4">Loading suggestions...</p>
+      </div>
+    </div>
+  </section>
+
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 
   <script>
-    // =====================================================
-    // FIREBASE CONFIG — Replace with your own values
-    // Go to: https://console.firebase.google.com
-    // 1. Create a project
-    // 2. Go to Project Settings > General > Your apps > Add web app
-    // 3. Copy the config object below
-    // =====================================================
     const firebaseConfig = {
     apiKey: "AIzaSyDQMUlg3GkudvW6WLeQbiz8sWjq3rQtfSs",
     authDomain: "donut-stock.firebaseapp.com",
@@ -185,6 +208,129 @@
     }
     tick();
     setInterval(tick, 1000);
+
+    // Suggestions board
+    const suggestionsRef = db.ref('suggestions');
+    const listEl = document.getElementById('suggestions-list');
+    const input = document.getElementById('suggestion-input');
+
+    suggestionsRef.orderByChild('timestamp').on('value', (snapshot) => {
+      const items = [];
+      snapshot.forEach((child) => { items.push(child.val()); });
+      items.reverse();
+
+      if (items.length === 0) {
+        listEl.innerHTML = '<p class="text-xs text-white/20 text-center py-4">No suggestions yet. Be the first!</p>';
+        return;
+      }
+
+      listEl.innerHTML = items.map((item) => {
+        const seconds = Math.floor((Date.now() - item.timestamp) / 1000);
+        let timeAgo = 'just now';
+        if (seconds >= 86400) timeAgo = Math.floor(seconds / 86400) + 'd ago';
+        else if (seconds >= 3600) timeAgo = Math.floor(seconds / 3600) + 'h ago';
+        else if (seconds >= 60) timeAgo = Math.floor(seconds / 60) + 'm ago';
+
+        const div = document.createElement('div');
+        div.textContent = item.text;
+        const safe = div.innerHTML;
+
+        return '<div class="bg-white/[0.03] border border-white/10 px-4 py-3 flex items-start justify-between gap-4">'
+          + '<p class="text-sm font-light text-white/70 break-words min-w-0">' + safe + '</p>'
+          + '<span class="text-[10px] text-white/20 whitespace-nowrap mt-0.5">' + timeAgo + '</span>'
+          + '</div>';
+      }).join('');
+    });
+
+    // Swear filter
+    const badWords = ['fuck','shit','ass','bitch','damn','hell','crap','dick','cock','pussy','bastard','slut','whore','fag','nigger','nigga','retard','cunt'];
+    function containsProfanity(text) {
+      const lower = text.toLowerCase().replace(/[^a-z]/g, ' ');
+      return badWords.some((w) => new RegExp('\\b' + w + '\\b').test(lower));
+    }
+
+    // Rate limiting: 30s cooldown + max 10 suggestions per user
+    const COOLDOWN_MS = 30000;
+    const MAX_SUGGESTIONS = 10;
+    const LAST_SUBMIT_KEY = 'donutstock_last_submit';
+    const SUBMIT_COUNT_KEY = 'donutstock_submit_count';
+    let submitCount = parseInt(localStorage.getItem(SUBMIT_COUNT_KEY) || '0', 10);
+    const submitBtn = document.querySelector('[onclick="submitSuggestion()"]');
+
+    function showInputError(msg) {
+      input.style.borderColor = '#ef4444';
+      input.setAttribute('placeholder', msg);
+      input.value = '';
+      setTimeout(() => {
+        input.style.borderColor = '';
+        input.setAttribute('placeholder', 'What would you like to see on launch?');
+      }, 2000);
+    }
+
+    function startCooldown(remaining) {
+      submitBtn.disabled = true;
+      submitBtn.classList.add('opacity-30', 'cursor-not-allowed');
+      submitBtn.classList.remove('hover:bg-white/80');
+      const updateLabel = () => {
+        const left = Math.ceil((remaining - (Date.now() - parseInt(localStorage.getItem(LAST_SUBMIT_KEY)))) / 1000);
+        if (left > 0) {
+          submitBtn.textContent = left + 's';
+          requestAnimationFrame(() => setTimeout(updateLabel, 200));
+        } else {
+          submitBtn.textContent = 'Submit';
+          submitBtn.disabled = false;
+          submitBtn.classList.remove('opacity-30', 'cursor-not-allowed');
+          submitBtn.classList.add('hover:bg-white/80');
+        }
+      };
+      updateLabel();
+    }
+
+    // Resume cooldown if page was refreshed mid-cooldown
+    const lastSubmit = parseInt(localStorage.getItem(LAST_SUBMIT_KEY) || '0', 10);
+    const elapsed = Date.now() - lastSubmit;
+    if (elapsed < COOLDOWN_MS) startCooldown(COOLDOWN_MS);
+
+    function submitSuggestion() {
+      const text = input.value.trim();
+      if (!text) return;
+
+      if (submitCount >= MAX_SUGGESTIONS) {
+        showInputError('You\'ve reached the suggestion limit');
+        return;
+      }
+
+      const now = Date.now();
+      const last = parseInt(localStorage.getItem(LAST_SUBMIT_KEY) || '0', 10);
+      if (now - last < COOLDOWN_MS) {
+        showInputError('Please wait before submitting again');
+        return;
+      }
+
+      if (containsProfanity(text)) {
+        showInputError('Please keep it clean!');
+        return;
+      }
+
+      suggestionsRef.push({ text: text, timestamp: now });
+      input.value = '';
+      submitCount++;
+      localStorage.setItem(SUBMIT_COUNT_KEY, submitCount);
+      localStorage.setItem(LAST_SUBMIT_KEY, now);
+      startCooldown(COOLDOWN_MS);
+    }
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submitSuggestion();
+    });
+
+    const charBar = document.getElementById('char-bar');
+    input.addEventListener('input', () => {
+      const pct = (input.value.length / 200) * 100;
+      charBar.style.width = pct + '%';
+      charBar.classList.toggle('bg-red-500', pct > 90);
+      charBar.classList.toggle('bg-white/30', pct <= 90);
+    });
   </script>
 
   <!-- FOOTER -->
